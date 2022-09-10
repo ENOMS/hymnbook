@@ -1,3 +1,7 @@
 package com.techbeloved.hymnbook.hymndetail
 
-data class HymnNumber(val index: Int, val hasSheetMusic: Boolean)
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+
+@Parcelize
+data class HymnNumber(val index: Int, val preferSheetMusic: Boolean): Parcelable

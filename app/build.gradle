@@ -206,7 +206,7 @@ dependencies {
     implementation 'com.android.support:multidex:1.0.3'
 
     // PdfViewer
-    implementation 'com.github.barteksc:android-pdf-viewer:3.1.0-beta.1'
+    implementation 'com.github.odifek:AndroidPdfViewer:dd5adcd'
 
     // Work manager
     def work_version = "2.7.1"

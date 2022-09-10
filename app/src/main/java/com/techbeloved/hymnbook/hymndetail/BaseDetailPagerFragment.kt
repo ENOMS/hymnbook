@@ -18,7 +18,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.ui.NavigationUI
 import androidx.preference.PreferenceManager
-import androidx.viewpager.widget.ViewPager
+import androidx.viewpager2.widget.ViewPager2
 import com.f2prateek.rx.preferences2.Preference
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -56,7 +56,7 @@ abstract class BaseDetailPagerFragment : Fragment() {
         // Inflate the layout for this fragment
         _binding =
             DataBindingUtil.inflate(inflater, R.layout.fragment_detail_pager, container, false)
-        binding.lifecycleOwner = this
+        binding.lifecycleOwner = viewLifecycleOwner
         binding.nowPlaying = nowPlayingViewModel
 
         NavigationUI.setupWithNavController(binding.toolbarDetail, findNavController())
@@ -93,22 +93,23 @@ abstract class BaseDetailPagerFragment : Fragment() {
 
         setupMediaPlaybackControls()
 
-        binding.viewpagerHymnDetail.addOnPageChangeListener(pageChangeListener)
+        binding.viewpagerHymnDetail.registerOnPageChangeCallback(pageChangeListener)
 
         return binding.root
     }
 
-    private var previousState = ViewPager.SCROLL_STATE_IDLE
-    private var userScrollChange = false
-    private val pageChangeListener: ViewPager.OnPageChangeListener =
-        object : ViewPager.OnPageChangeListener {
+
+    private val pageChangeListener: ViewPager2.OnPageChangeCallback =
+        object : ViewPager2.OnPageChangeCallback() {
+            private var previousState = ViewPager2.SCROLL_STATE_IDLE
+            private var userScrollChange = false
             override fun onPageScrollStateChanged(state: Int) {
-                if (previousState == ViewPager.SCROLL_STATE_DRAGGING
-                    && state == ViewPager.SCROLL_STATE_SETTLING
+                if (previousState == ViewPager2.SCROLL_STATE_DRAGGING
+                    && state == ViewPager2.SCROLL_STATE_SETTLING
                 )
                     userScrollChange = true
-                else if (previousState == ViewPager.SCROLL_STATE_SETTLING
-                    && state == ViewPager.SCROLL_STATE_IDLE
+                else if (previousState == ViewPager2.SCROLL_STATE_SETTLING
+                    && state == ViewPager2.SCROLL_STATE_IDLE
                 )
                     userScrollChange = false
 
@@ -123,6 +124,13 @@ abstract class BaseDetailPagerFragment : Fragment() {
             }
 
             override fun onPageSelected(position: Int) {
+                // When we move to a new page, we want to update the current hymn id so play button can pick the correct tune
+                val adapter = binding.viewpagerHymnDetail.adapter as? DetailPagerFragment.DetailPagerAdapter
+                val currentItem = adapter?.getItem(position)
+                if (currentItem != null) {
+                    updateCurrentItemId(currentItem.index)
+                }
+
                 if (userScrollChange) nowPlayingViewModel.skipTo(position)
             }
 
@@ -384,7 +392,7 @@ abstract class BaseDetailPagerFragment : Fragment() {
         binding.toolbarDetail.subtitle = "Hymn, $itemId"
     }
 
-    fun updateHymnItems(hymnItems: List<Int>) {
+    fun updatePlaybackHymnItems(hymnItems: List<Int>) {
         nowPlayingViewModel.updateHymnItems(hymnItems)
     }
 

@@ -101,6 +101,7 @@ class SheetMusicDetailFragment : Fragment() {
                     .enableAntialiasing(true)
                     .nightMode(isDarkMode())
                     .enableDoubletap(true)
+                    .autoReleasingWhenDetachedFromWindow(false)
                     .load()
                 showProgress(show = false)
             }
@@ -141,8 +142,9 @@ class SheetMusicDetailFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
+        binding.pdfViewSheetMusicDetail.release()
         _binding = null
+        super.onDestroyView()
     }
 }
 

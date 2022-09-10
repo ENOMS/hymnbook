@@ -1,18 +1,15 @@
 package com.techbeloved.hymnbook.hymndetail
 
 
-import android.annotation.SuppressLint
 import android.app.ProgressDialog
 import android.os.Bundle
 import android.view.View
-import android.view.ViewGroup
 import androidx.core.app.ShareCompat
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.FragmentStatePagerAdapter
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.navArgs
-import androidx.viewpager.widget.PagerAdapter
+import androidx.recyclerview.widget.DiffUtil
+import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.google.android.material.snackbar.Snackbar
 import com.techbeloved.hymnbook.R
 import com.techbeloved.hymnbook.sheetmusic.SheetMusicDetailFragment
@@ -22,7 +19,6 @@ import com.techbeloved.hymnbook.utils.MINIMUM_VERSION_FOR_SHARE_LINK
 import com.techbeloved.hymnbook.utils.WCCRM_LOGO_URL
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import kotlin.properties.Delegates.observable
 
 @AndroidEntryPoint
 class DetailPagerFragment : BaseDetailPagerFragment() {
@@ -40,11 +36,9 @@ class DetailPagerFragment : BaseDetailPagerFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val detailPagerAdapter = DetailPagerAdapter(childFragmentManager).also { adapter ->
-            viewModel.preferSheetMusic.observe(viewLifecycleOwner) { adapter.preferSheetMusic = it }
-        }
+        binding.viewpagerHymnDetail.setPageTransformer(DepthPageTransformer())
+        val detailPagerAdapter = DetailPagerAdapter()
         binding.viewpagerHymnDetail.adapter = detailPagerAdapter
-        binding.viewpagerHymnDetail.setPageTransformer(true, DepthPageTransformer())
 
         viewModel.hymnIndicesLiveData.observe(viewLifecycleOwner) { indicesLce ->
             val indexToLoad = currentHymnId
@@ -52,8 +46,7 @@ class DetailPagerFragment : BaseDetailPagerFragment() {
                 is Lce.Loading -> showProgressLoading(indicesLce.loading)
                 is Lce.Content -> {
                     initializeViewPager(detailPagerAdapter, indicesLce.content, indexToLoad)
-                    updateCurrentItemId(indexToLoad)
-                    updateHymnItems(indicesLce.content.map { it.index })
+                    updatePlaybackHymnItems(indicesLce.content.map { it.index })
                 }
                 is Lce.Error -> showContentError(indicesLce.error)
             }
@@ -116,15 +109,18 @@ class DetailPagerFragment : BaseDetailPagerFragment() {
         initialIndex: Int
     ) {
         Timber.i("Initializing viewPager with index: $initialIndex")
-        //showProgressLoading(false)
-
+        val oldItemCount = detailPagerAdapter.itemCount
         detailPagerAdapter.submitList(hymnIndices)
+
         // initialIndex represents the hymn number, where as the adapter uses a zero based index
         // Which implies that when the indices is sorted by titles, the correct detail won't be shown.
         // So we just need to find the index from the list of hymn indices
 
         val indexToLoad = hymnIndices.indexOfFirst { it.index == initialIndex }
-        binding.viewpagerHymnDetail.currentItem = indexToLoad
+        if (oldItemCount == 0) {
+            // Set the initial item to load. Otherwise, this is a refresh.
+            binding.viewpagerHymnDetail.currentItem = indexToLoad
+        }
     }
 
     override fun initiateContentSharing() {
@@ -136,41 +132,39 @@ class DetailPagerFragment : BaseDetailPagerFragment() {
         )
     }
 
-    @SuppressLint("WrongConstant")
-    inner class DetailPagerAdapter(fm: FragmentManager) :
-        FragmentStatePagerAdapter(fm, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
-        private val hymnIndices = mutableListOf<HymnNumber>()
-        var preferSheetMusic: Boolean by observable(false) { property, oldValue, newValue ->
-            if (oldValue != newValue) notifyDataSetChanged()
+
+    inner class DetailPagerAdapter : FragmentStateAdapter(this) {
+        private val items = mutableListOf<HymnNumber>()
+
+        override fun createFragment(position: Int): Fragment {
+            val item = items[position]
+            if (item.preferSheetMusic) return SheetMusicDetailFragment().apply { init(item.index) }
+            return DetailFragment().apply { init(item.index) }
         }
 
-        override fun getItem(position: Int): Fragment {
-            val item = hymnIndices[position]
-            val hymnToShow = if (position < hymnIndices.size) item.index else 1
-            return if (preferSheetMusic && item.hasSheetMusic) {
-                SheetMusicDetailFragment().apply { init(hymnToShow) }
-            } else {
-                DetailFragment().apply { init(hymnToShow) }
-            }
+        override fun getItemId(position: Int): Long {
+            return items[position].hashCode().toLong()
         }
 
-        override fun setPrimaryItem(container: ViewGroup, position: Int, `object`: Any) {
-            super.setPrimaryItem(container, position, `object`)
-            updateCurrentItemId(hymnIndices[position].index)
+        override fun containsItem(itemId: Long): Boolean {
+            return items.any { it.hashCode().toLong() == itemId }
         }
 
-        override fun getItemPosition(`object`: Any): Int {
-            return PagerAdapter.POSITION_NONE
+        override fun getItemCount(): Int {
+            return items.size
         }
 
-        override fun getCount(): Int {
-            return hymnIndices.size
+        fun getItem(position: Int): HymnNumber? {
+            val itemId = getItemId(position)
+            return items.firstOrNull { it.hashCode().toLong() == itemId }
         }
 
-        fun submitList(hymnIndices: List<HymnNumber>) {
-            this.hymnIndices.clear()
-            this.hymnIndices.addAll(hymnIndices)
-            notifyDataSetChanged()
+        fun submitList(newItems: List<HymnNumber>) {
+            val callback = HmnPagerDiffer(items, newItems)
+            val diff = DiffUtil.calculateDiff(callback)
+            this.items.clear()
+            this.items.addAll(newItems)
+            diff.dispatchUpdatesTo(this)
         }
 
     }

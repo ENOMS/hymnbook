@@ -1,8 +1,9 @@
 package com.techbeloved.hymnbook.utils;
 
-import androidx.annotation.NonNull;
-import androidx.viewpager.widget.ViewPager;
 import android.view.View;
+
+import androidx.annotation.NonNull;
+import androidx.viewpager2.widget.ViewPager2;
 
 /**
  * Created by kennedy on 5/2/18.
@@ -12,7 +13,7 @@ import android.view.View;
  * scales it down linearly.
  */
 
-public class DepthPageTransformer implements ViewPager.PageTransformer {
+public class DepthPageTransformer implements ViewPager2.PageTransformer {
     private static final float MIN_SCALE = 0.75f;
 
     public void transformPage(@NonNull View view, float position) {

@@ -34,12 +34,13 @@
 
         </com.google.android.material.appbar.AppBarLayout>
 
-        <androidx.viewpager.widget.ViewPager
+        <androidx.viewpager2.widget.ViewPager2
             android:id="@+id/viewpager_hymn_detail"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
             android:paddingBottom="?actionBarSize"
+            android:nestedScrollingEnabled="true"
             app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
         <ProgressBar

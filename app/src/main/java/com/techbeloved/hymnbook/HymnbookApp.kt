@@ -32,7 +32,7 @@ class HymnbookApp : Application(), WorkerConfig.Provider {
         setupNightMode()
 
         if (BuildConfig.DEBUG) {
-            Timber.plant(Timber.DebugTree())
+            Timber.plant(HyperlinkedDebugTree())
         }
 
         FirebaseApp.initializeApp(this)
@@ -85,4 +85,12 @@ class HymnbookApp : Application(), WorkerConfig.Provider {
     override fun getWorkManagerConfiguration(): WorkerConfig = WorkerConfig.Builder()
         .setWorkerFactory(workerFactory)
         .build()
+}
+
+private class HyperlinkedDebugTree : Timber.DebugTree() {
+    override fun createStackElementTag(element: StackTraceElement): String {
+        with(element) {
+            return "($fileName:$lineNumber)$methodName()"
+        }
+    }
 }
